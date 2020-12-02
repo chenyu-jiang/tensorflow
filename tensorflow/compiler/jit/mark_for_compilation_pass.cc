@@ -15,6 +15,9 @@ limitations under the License.
 
 #include "tensorflow/compiler/jit/mark_for_compilation_pass.h"
 
+#include <string>
+#include <stdlib.h>
+#include <fstream>
 #include <atomic>
 #include <deque>
 #include <limits>
@@ -1173,9 +1176,49 @@ StatusOr<bool> MarkForCompilationPassImpl::TryToContractEdgesFrom(
   return changed;
 }
 
+std::unordered_map<std::string, int> MarkForCompilationPassImpl::ReadTensorNameList(std::string spec_path) {
+  std::unordered_map<std::string, int> tensor_name_to_cluster;
+  std::ifstream tensor_file(spec_path);
+  std::string line; 
+  while (std::getline(tensor_file, line)) {
+    try {
+      std::string tensor_name = line.substr(0, line.find(" "));
+      std::string cluster_id_str =  line.substr(line.find(" ") + 1);
+      int cluster_id = std::stoi(cluster_id_str);
+      tensor_name_to_cluster[tensor_name] = cluster_id;
+    } catch {
+      throw "Illegal cluster specification format.";
+    }
+  }
+  return tensor_name_to_cluster;
+}
+
 Status MarkForCompilationPassImpl::Run() {
   // Make sure that kernels have been registered on the JIT device.
   XlaOpRegistry::RegisterCompilationKernels();
+
+  char* compilation_specification_path = getenv("XLA_CLUSTER_SPEC");
+  if (compilation_specification_path != NULL) {
+    // Instead of auto-clustring, use manual specification
+    std::string path_str = compilation_specification_path;
+    auto tensor_name_to_cluster = ReadTensorNameList(path_str);
+
+    TF_RETURN_IF_ERROR(FindCompilationCandidates());
+
+    for (Node* n : compilation_candidates_) {
+        if (tensor_name_to_cluster.find(n->name()) == tensor_name_to_cluster.end()) {
+          continue;
+        }
+
+        auto cluster_id = tensor_name_to_cluster.at(n->name());
+        auto cluster_name = absl::StrCat("cluster_", std::stoi(cluster_id));
+
+        n->AddAttr(kXlaClusterAttr, cluster_name);
+        n->AddAttr(kXlaAlreadyClustered, true);
+        VLOG(3) << "Assigning node " << n->name() << " to cluster " << cluster_name;
+    }
+    return Status::OK();
+  }
 
   // Start the timer after XlaOpRegistry::RegisterCompilationKernels which does
   // some one-time work.
