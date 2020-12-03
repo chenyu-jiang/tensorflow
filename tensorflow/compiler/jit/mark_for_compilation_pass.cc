@@ -1188,7 +1188,7 @@ std::unordered_map<std::string, int> MarkForCompilationPassImpl::ReadTensorNameL
       std::string cluster_id_str =  line.substr(line.find(" ") + 1);
       int cluster_id = std::stoi(cluster_id_str);
       tensor_name_to_cluster[tensor_name] = cluster_id;
-    } catch {
+    } catch (const std::exception &e) {
       throw "Illegal cluster specification format.";
     }
   }
