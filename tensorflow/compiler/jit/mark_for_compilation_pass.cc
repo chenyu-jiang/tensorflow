@@ -275,7 +275,7 @@ class MarkForCompilationPassImpl {
     return compilation_candidates_.find(n) != compilation_candidates_.end();
   }
 
-  std::unordered_map<std::string, int> MarkForCompilationPassImpl::ReadTensorNameList(std::string spec_path);
+  std::unordered_map<std::string, int> ReadTensorNameList(std::string spec_path);
 
   // Tries to contract the edge from cluster `from` to cluster `to`.  Returns
   // true if successful.
