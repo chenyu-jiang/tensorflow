@@ -1213,7 +1213,7 @@ Status MarkForCompilationPassImpl::Run() {
         }
 
         auto cluster_id = tensor_name_to_cluster.at(n->name());
-        auto cluster_name = absl::StrCat("cluster_", std::stoi(cluster_id));
+        auto cluster_name = absl::StrCat("cluster_", std::to_string(cluster_id));
 
         n->AddAttr(kXlaClusterAttr, cluster_name);
         n->AddAttr(kXlaAlreadyClustered, true);
