@@ -210,8 +210,6 @@ class MarkForCompilationPassImpl {
                           cycles_graph_node_id(), ">");
     }
 
-    std::unordered_map<std::string, int> MarkForCompilationPassImpl::ReadTensorNameList(std::string spec_path);
-
    private:
     int cluster_size_ = 1;
     int cycles_graph_node_id_;
@@ -276,6 +274,8 @@ class MarkForCompilationPassImpl {
   bool IsCompilationCandidate(Node* n) const {
     return compilation_candidates_.find(n) != compilation_candidates_.end();
   }
+
+  std::unordered_map<std::string, int> MarkForCompilationPassImpl::ReadTensorNameList(std::string spec_path);
 
   // Tries to contract the edge from cluster `from` to cluster `to`.  Returns
   // true if successful.
