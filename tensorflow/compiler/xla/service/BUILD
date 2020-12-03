@@ -2790,6 +2790,7 @@ cc_library(
     hdrs = ["hlo_cost_analysis.h"],
     deps = [
         ":hlo",
+	"//tensorflow/compiler/xla/service/gpu:backend_configs_cc",
         "//tensorflow/compiler/xla:shape_util",
         "//tensorflow/compiler/xla:status_macros",
         "//tensorflow/compiler/xla:statusor",

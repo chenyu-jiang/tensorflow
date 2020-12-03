@@ -117,17 +117,18 @@ Status LocalExecutable::ValidateExecutionOptions(
 
 StatusOr<std::pair<ServiceExecutableRunOptions, StreamPool::Ptr>>
 LocalExecutable::RunHelper(const absl::Span<const Shape* const> argument_shapes,
-                           ExecutableRunOptions run_options) {
+                           ExecutableRunOptions run_options, float* clock_rate_ghz) {
   const ComputationLayout& computation_layout =
       executable_->module_config().entry_computation_layout();
 
   // Check argument number, shapes, and layouts.
-  if (argument_shapes.size() != computation_layout.parameter_count()) {
+  const int argument_shapes_size = argument_shapes.size();
+  if (argument_shapes_size != computation_layout.parameter_count()) {
     return InvalidArgument(
         "invalid number of arguments for computation: expected %d, got %u",
         computation_layout.parameter_count(), argument_shapes.size());
   }
-  for (int i = 0; i < argument_shapes.size(); ++i) {
+  for (int i = 0, end = argument_shapes.size(); i < end; ++i) {
     if (!computation_layout.parameter_layout(i).MatchesLayoutInShape(
             *argument_shapes[i])) {
       return InvalidParameterArgument(
@@ -154,6 +155,9 @@ LocalExecutable::RunHelper(const absl::Span<const Shape* const> argument_shapes,
         stream, BorrowStreamForDevice(run_options.device_ordinal(), backend_));
     run_options.set_stream(stream.get());
   }
+  if (clock_rate_ghz != nullptr) {
+      *clock_rate_ghz = run_options.stream()->parent()->GetDeviceDescription().clock_rate_ghz();
+  }
   if (run_options.allocator() == nullptr) {
     run_options.set_allocator(backend_->memory_allocator());
   }
@@ -170,7 +174,7 @@ LocalExecutable::RunHelper(const absl::Span<const Shape* const> argument_shapes,
 
 StatusOr<ScopedShapedBuffer> LocalExecutable::Run(
     const absl::Span<const ShapedBuffer* const> arguments,
-    ExecutableRunOptions run_options) {
+    ExecutableRunOptions run_options, float* clock_rate_ghz) {
   std::vector<const Shape*> argument_shapes;
   argument_shapes.reserve(arguments.size());
   for (const ShapedBuffer* const arg : arguments) {
@@ -178,12 +182,12 @@ StatusOr<ScopedShapedBuffer> LocalExecutable::Run(
   }
   return AsyncCallAndBlockHostUntilDone<xla::ScopedShapedBuffer>(
       argument_shapes, run_options, [&](const ExecutableRunOptions& options) {
-        return RunAsync(arguments, options);
+        return RunAsync(arguments, options, clock_rate_ghz);
       });
 }
 
 StatusOr<ExecutionOutput> LocalExecutable::Run(
-    std::vector<ExecutionInput> arguments, ExecutableRunOptions run_options) {
+    std::vector<ExecutionInput> arguments, ExecutableRunOptions run_options, float* clock_rate_ghz) {
   std::vector<const Shape*> argument_shapes;
   argument_shapes.reserve(arguments.size());
   for (const ExecutionInput& arg : arguments) {
@@ -191,7 +195,7 @@ StatusOr<ExecutionOutput> LocalExecutable::Run(
   }
   return AsyncCallAndBlockHostUntilDone<ExecutionOutput>(
       argument_shapes, run_options, [&](const ExecutableRunOptions& options) {
-        return RunAsync(argument_shapes, std::move(arguments), options);
+        return RunAsync(argument_shapes, std::move(arguments), options, clock_rate_ghz);
       });
 }
 
@@ -238,14 +242,14 @@ static void DumpOutputsAndSaveSnapshot(const Backend* backend,
 
 StatusOr<ScopedShapedBuffer> LocalExecutable::RunAsync(
     const absl::Span<const ShapedBuffer* const> arguments,
-    ExecutableRunOptions run_options) {
+    ExecutableRunOptions run_options, float* clock_rate_ghz) {
   std::vector<const Shape*> argument_shapes;
   argument_shapes.reserve(arguments.size());
   for (const ShapedBuffer* const arg : arguments) {
     argument_shapes.push_back(&arg->on_host_shape());
   }
   TF_ASSIGN_OR_RETURN(auto options_and_stream,
-                      RunHelper(argument_shapes, run_options));
+                      RunHelper(argument_shapes, run_options, clock_rate_ghz));
   se::Stream* stream = run_options.stream();
 
   std::shared_ptr<HloSnapshot> snapshot;
@@ -279,7 +283,7 @@ static ShapedBuffer MaybeOwningShapeTreeToShapedBuffer(
 
 StatusOr<ExecutionOutput> LocalExecutable::RunAsync(
     absl::Span<Shape const* const> argument_host_shapes,
-    std::vector<ExecutionInput> arguments, ExecutableRunOptions run_options) {
+    std::vector<ExecutionInput> arguments, ExecutableRunOptions run_options, float* clock_rate_ghz) {
   if (argument_host_shapes.size() != arguments.size()) {
     return InvalidArgument(
         "Number of argument host shapes not equal to number of arguments (%d "
@@ -287,7 +291,7 @@ StatusOr<ExecutionOutput> LocalExecutable::RunAsync(
         argument_host_shapes.size(), arguments.size());
   }
   TF_ASSIGN_OR_RETURN(auto options_and_stream,
-                      RunHelper(argument_host_shapes, run_options));
+                      RunHelper(argument_host_shapes, run_options, clock_rate_ghz));
   se::Stream* stream = run_options.stream();
 
   std::shared_ptr<HloSnapshot> snapshot;
@@ -321,13 +325,13 @@ StatusOr<ExecutionOutput> LocalExecutable::RunAsync(
 }
 
 StatusOr<ExecutionOutput> LocalExecutable::RunAsync(
-    std::vector<ExecutionInput> arguments, ExecutableRunOptions run_options) {
+    std::vector<ExecutionInput> arguments, ExecutableRunOptions run_options, float* clock_rate_ghz) {
   std::vector<const Shape*> argument_shapes;
   argument_shapes.reserve(arguments.size());
   for (const ExecutionInput& arg : arguments) {
     argument_shapes.push_back(&arg.shape());
   }
-  return RunAsync(argument_shapes, std::move(arguments), run_options);
+  return RunAsync(argument_shapes, std::move(arguments), run_options, clock_rate_ghz);
 }
 
 se::Platform* LocalClient::platform() const {

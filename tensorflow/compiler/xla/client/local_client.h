@@ -49,27 +49,23 @@ class LocalExecutable {
   // return the result.
   StatusOr<ScopedShapedBuffer> Run(
       const absl::Span<const ShapedBuffer* const> arguments,
-      ExecutableRunOptions run_options);
+      ExecutableRunOptions run_options, float* clock_rate_ghz=nullptr);
 
   // Similar to Run(), but allows for donating argument buffers to the
   // executable.
   StatusOr<ExecutionOutput> Run(std::vector<ExecutionInput> arguments,
-                                ExecutableRunOptions run_options);
+                                ExecutableRunOptions run_options, float* clock_rate_ghz=nullptr);
 
   // Similar to Run(), but need not block the host waiting for the computation
   // to complete before returning.
   StatusOr<ScopedShapedBuffer> RunAsync(
       const absl::Span<const ShapedBuffer* const> arguments,
-      ExecutableRunOptions run_options);
+      ExecutableRunOptions run_options, float* clock_rate_ghz=nullptr);
 
   // Similar to RunAsync(), but allows for donating argument buffers to the
   // executable.
-  StatusOr<ExecutionOutput> RunAsync(
-      absl::Span<Shape const* const> argument_host_shapes,
-      std::vector<ExecutionInput> arguments, ExecutableRunOptions run_options);
-
   StatusOr<ExecutionOutput> RunAsync(std::vector<ExecutionInput> arguments,
-                                     ExecutableRunOptions run_options);
+                                     ExecutableRunOptions run_options, float* clock_rate_ghz=nullptr);
 
   // Return the options used to build the executable.
   const ExecutableBuildOptions& build_options() const { return build_options_; }
@@ -78,6 +74,10 @@ class LocalExecutable {
   Executable* executable() const { return executable_.get(); }
 
  private:
+  StatusOr<ExecutionOutput> RunAsync(
+      absl::Span<Shape const* const> argument_host_shapes,
+      std::vector<ExecutionInput> arguments, ExecutableRunOptions run_options, float* clock_rate_ghz=nullptr);
+
   // Validates that the given arguments and options satisfy various constraints
   // of the computation.
   //
@@ -91,7 +91,7 @@ class LocalExecutable {
 
   StatusOr<std::pair<ServiceExecutableRunOptions, StreamPool::Ptr>> RunHelper(
       const absl::Span<const Shape* const> argument_shapes,
-      ExecutableRunOptions run_options);
+      ExecutableRunOptions run_options, float* clock_rate_ghz=nullptr);
 
   // The ordinal of the device which this executable was compiled for. The
   // executable can run on all equivalent devices (as determined by

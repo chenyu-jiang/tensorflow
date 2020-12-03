@@ -8,7 +8,7 @@ load(
 )
 
 package(
-    default_visibility = ["//tensorflow/compiler/xla:internal"],
+    default_visibility = ["//tensorflow/compiler/xla:internal", "//tensorflow/compiler/byteprofile_xlatools:__pkg__"],
     licenses = ["notice"],  # Apache 2.0
 )
 
@@ -55,7 +55,7 @@ tf_cc_binary(
 
 cc_library(
     name = "replay_computation_library",
-    srcs = ["replay_computation.cc"],
+    srcs = ["replay_computation.cc", "kernel_utils.h"],
     deps = [
         "//tensorflow/compiler/xla:debug_options_flags",
         "//tensorflow/compiler/xla:execution_options_util",
@@ -72,9 +72,14 @@ cc_library(
         "//tensorflow/compiler/xla/client:xla_computation",
         "//tensorflow/compiler/xla/client/lib:testing",
         "//tensorflow/compiler/xla/service:hlo_parser",
+	"//tensorflow/compiler/xla/service:hlo",
         "//tensorflow/compiler/xla/service:hlo_proto_cc",
         "//tensorflow/compiler/xla/service/gpu:infeed_manager",
         "//tensorflow/compiler/xla/service/gpu:outfeed_manager",
+	"//tensorflow/compiler/xla/service/gpu:backend_configs_cc",
+	"//tensorflow/compiler/xla/service:hlo_execution_profile",
+	"//tensorflow/core/platform:errors",
+	"//tensorflow/compiler/xla/tools:hlo_module_loader",
         "//tensorflow/compiler/xla/tests:test_utils",
         "//tensorflow/core:framework_internal",
         "//tensorflow/core:lib",
@@ -89,6 +94,41 @@ tf_cc_binary(
     deps = [
         ":replay_computation_library",
         "//tensorflow/compiler/xla/service:cpu_plugin",
+    ],
+)
+
+tf_cc_binary(
+    name = "extract_features_from_hlo",
+    srcs = ["extract_features_from_hlo.cc", "kernel_utils.h"],
+    deps = [
+        "//tensorflow/compiler/xla:debug_options_flags",
+        "//tensorflow/compiler/xla:execution_options_util",
+        "//tensorflow/compiler/xla:literal",
+        "//tensorflow/compiler/xla:shape_util",
+        "//tensorflow/compiler/xla:status_macros",
+        "//tensorflow/compiler/xla:statusor",
+        "//tensorflow/compiler/xla:types",
+        "//tensorflow/compiler/xla:xla_data_proto_cc",
+        "//tensorflow/compiler/xla/client",
+        "//tensorflow/compiler/xla/client:client_library",
+        "//tensorflow/compiler/xla/client:global_data",
+        "//tensorflow/compiler/xla/client:local_client",
+        "//tensorflow/compiler/xla/client:xla_computation",
+        "//tensorflow/compiler/xla/client/lib:testing",
+        "//tensorflow/compiler/xla/service:hlo_parser",
+        "//tensorflow/compiler/xla/service:hlo",
+        "//tensorflow/compiler/xla/service:hlo_proto_cc",
+        "//tensorflow/compiler/xla/service/gpu:infeed_manager",
+        "//tensorflow/compiler/xla/service/gpu:outfeed_manager",
+        "//tensorflow/compiler/xla/service/gpu:backend_configs_cc",
+        "//tensorflow/compiler/xla/service:hlo_execution_profile",
+        "//tensorflow/core/platform:errors",
+        "//tensorflow/compiler/xla/tools:hlo_module_loader",
+        "//tensorflow/compiler/xla/tests:test_utils",
+        "//tensorflow/core:framework_internal",
+        "//tensorflow/core:lib",
+        "//third_party/eigen3",
+        "@com_google_absl//absl/types:span",
     ],
 )
 
@@ -344,6 +384,19 @@ tf_cc_binary(
     ] + if_cuda_or_rocm([
         "//tensorflow/compiler/xla/service:gpu_plugin",
     ]),
+)
+
+tf_cc_binary(
+    name = "gen_feature_vector",
+    srcs = ["gen_feature_vector.cc"],
+    deps = [
+        ":hlo_module_loader",
+        "//tensorflow/compiler/xla:statusor",
+        "//tensorflow/compiler/xla:shape_util",
+        "//tensorflow/compiler/xla/service:hlo",
+        "//tensorflow/compiler/xla/service:hlo_cost_analysis",
+        "//tensorflow/core/platform:errors",
+    ],
 )
 
 # This target is used to reproduce miscompiles in OSS outside of TF, and it can
