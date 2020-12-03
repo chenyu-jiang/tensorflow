@@ -210,6 +210,8 @@ class MarkForCompilationPassImpl {
                           cycles_graph_node_id(), ">");
     }
 
+    std::unordered_map<std::string, int> MarkForCompilationPassImpl::ReadTensorNameList(std::string spec_path);
+
    private:
     int cluster_size_ = 1;
     int cycles_graph_node_id_;
