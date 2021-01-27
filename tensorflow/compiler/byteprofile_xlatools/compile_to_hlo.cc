@@ -109,8 +109,8 @@ Status CompileToHlo(std::string& graph_path, std::string& config_path,
   TF_RETURN_IF_ERROR(ReadProtoFile(graph_path, &graph_def));
   // std::cout << "Graph file valid." << std::endl;
   
-  TF_RETURN_IF_ERROR(CompileGraphToOptimizedHLO(graph_def, config, dump_path_unopt, dump_path_opt));
-  // std::cout << "Compilation finished." << std::endl;
+  auto compile_status = CompileGraphToOptimizedHLO(graph_def, config, dump_path_unopt, dump_path_opt);
+  std::cout << "Compilation status: " << compile_status.ToString() << std::endl;
   return Status::OK();
 }
 

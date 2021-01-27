@@ -599,6 +599,14 @@ StatusOr<bool> MarkForCompilationPassImpl::Initialize() {
 
   TF_RETURN_IF_ERROR(FindCompilationCandidates());
 
+  char* dump_compilation_candidates_path = getenv("XLA_DUMP_CANDIDATES");
+  if (dump_compilation_candidates_path != NULL) {
+    std::ofstream candidate_file(dump_compilation_candidates_path);
+    for (Node* n : compilation_candidates_) {
+        candidate_file << n->name() << std::endl;
+    }
+  }
+
   if (compilation_candidates_.empty()) {
     VLOG(2) << "No compilable candidates";
     return false;
@@ -1387,6 +1395,19 @@ Status MarkForCompilationPassImpl::Run() {
     auto tensor_name_to_cluster = ReadTensorNameList(path_str);
 
     TF_RETURN_IF_ERROR(FindCompilationCandidates());
+
+    char* dump_compilation_candidates_path = getenv("XLA_DUMP_CANDIDATES");
+    if (dump_compilation_candidates_path != NULL) {
+      std::ofstream candidate_file(dump_compilation_candidates_path, std::ios_base::app);
+      for (Node* n : compilation_candidates_) {
+          candidate_file << n->name() << std::endl;
+      }
+    }
+
+    char* dump_graph_dir = getenv("XLA_DUMP_GRAPH");
+    if (dump_graph_dir != NULL) {
+      DumpGraphToFile("before_mark_for_compilation", *graph_, flib_def_, dump_graph_dir);
+    }
 
     for (Node* n : compilation_candidates_) {
         if (tensor_name_to_cluster.find(n->name()) == tensor_name_to_cluster.end()) {
